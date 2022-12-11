@@ -59,12 +59,14 @@ impl<'a, C: Compression> File<'a, C> {
 impl<'a, C: Compression> File<'a, C> {
     /// Set the [`Metadata`] associated with a [`File`].
     pub const fn with_metadata(self, metadata: crate::Metadata) -> Self {
-        let File { path, contents, .. } = self;
+        let File { path, compressed, decompressed, .. } = self;
 
         File {
             path,
-            contents,
+            compressed,
+            decompressed,
             metadata: Some(metadata),
+            _compression: PhantomData,
         }
     }
 
