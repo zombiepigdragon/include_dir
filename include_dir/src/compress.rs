@@ -17,3 +17,14 @@ impl Compression for None {
         Cow::Borrowed(data)
     }
 }
+
+/// Do zstd compression on embedded files.
+#[cfg(feature = "zstd")]
+pub enum Zstd {}
+
+#[cfg(feature = "zstd")]
+impl Compression for Zstd {
+    fn decompress(data: &[u8]) -> Cow<'_, [u8]> {
+        zstd::decode_all(data).unwrap().into()
+    }
+}

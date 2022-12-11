@@ -106,6 +106,8 @@ pub use crate::metadata::Metadata;
 
 pub use crate::{dir::Dir, dir_entry::DirEntry, file::File};
 pub use include_dir_macros::include_dir;
+#[cfg(feature = "zstd")]
+pub use include_dir_macros::include_dir_zstd;
 
 #[doc = include_str!("../README.md")]
 #[allow(dead_code)]

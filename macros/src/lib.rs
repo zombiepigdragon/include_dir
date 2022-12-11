@@ -16,6 +16,20 @@ use std::{
 /// Embed the contents of a directory in your crate.
 #[proc_macro]
 pub fn include_dir(input: TokenStream) -> TokenStream {
+    include_dir_generic(input, None)
+}
+
+/// Embed the contents of a directory in your crate with zstd compression.
+#[cfg(feature = "zstd")]
+#[proc_macro]
+pub fn include_dir_zstd(input: TokenStream) -> TokenStream {
+    include_dir_generic(input, Some(|content| zstd::encode_all(content, 0).unwrap()))
+}
+
+// `None` for no compression, or `Some` fn that returns the compressed bytes.
+type CompressorFn = Option<fn(&[u8]) -> Vec<u8>>;
+
+fn include_dir_generic(input: TokenStream, compressor: CompressorFn) -> TokenStream {
     let tokens: Vec<_> = input.into_iter().collect();
 
     let path = match tokens.as_slice() {
@@ -25,7 +39,7 @@ pub fn include_dir(input: TokenStream) -> TokenStream {
 
     let path = resolve_path(&path, get_env).unwrap();
 
-    expand_dir(&path, &path).into()
+    expand_dir(&path, &path, compressor).into()
 }
 
 fn unwrap_string_literal(lit: &proc_macro::Literal) -> String {
@@ -40,7 +54,7 @@ fn unwrap_string_literal(lit: &proc_macro::Literal) -> String {
     repr
 }
 
-fn expand_dir(root: &Path, path: &Path) -> proc_macro2::TokenStream {
+fn expand_dir(root: &Path, path: &Path, compressor: CompressorFn) -> proc_macro2::TokenStream {
     let children = read_dir(path).unwrap_or_else(|e| {
         panic!(
             "Unable to read the entries in \"{}\": {}",
@@ -53,12 +67,12 @@ fn expand_dir(root: &Path, path: &Path) -> proc_macro2::TokenStream {
 
     for child in children {
         if child.is_dir() {
-            let tokens = expand_dir(root, &child);
+            let tokens = expand_dir(root, &child, compressor);
             child_tokens.push(quote! {
                 include_dir::DirEntry::Dir(#tokens)
             });
         } else if child.is_file() {
-            let tokens = expand_file(root, &child);
+            let tokens = expand_file(root, &child, compressor);
             child_tokens.push(quote! {
                 include_dir::DirEntry::File(#tokens)
             });
@@ -74,17 +88,27 @@ fn expand_dir(root: &Path, path: &Path) -> proc_macro2::TokenStream {
     }
 }
 
-fn expand_file(root: &Path, path: &Path) -> proc_macro2::TokenStream {
+fn expand_file(root: &Path, path: &Path, compressor: CompressorFn) -> proc_macro2::TokenStream {
     let abs = path
         .canonicalize()
         .unwrap_or_else(|e| panic!("failed to resolve \"{}\": {}", path.display(), e));
-    let literal = match abs.to_str() {
-        Some(abs) => quote!(include_bytes!(#abs)),
-        None => {
+    let literal = match compressor {
+        Some(compressor) => {
             let contents = read_file(path);
-            let literal = Literal::byte_string(&contents);
+            // TODO: It would be better on the compiler if we instead did this by copying the files to `OUT_DIR` and used `include_bytes!`.
+            //       Just append `path` to `OUT_DIR`, `create_dir_all`, write the new file, and include it
+            let compressed = compressor(&contents);
+            let literal = Literal::byte_string(&compressed);
             quote!(#literal)
         }
+        None => match abs.to_str() {
+            Some(abs) => quote!(include_bytes!(#abs)),
+            None => {
+                let contents = read_file(path);
+                let literal = Literal::byte_string(&contents);
+                quote!(#literal)
+            }
+        },
     };
 
     let normalized_path = normalize_path(root, path);
