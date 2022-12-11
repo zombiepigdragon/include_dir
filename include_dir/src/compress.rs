@@ -19,12 +19,25 @@ impl Compression for None {
 }
 
 /// Do zstd compression on embedded files.
-#[cfg(feature = "zstd")]
+#[cfg(feature = "compression-zstd")]
 pub enum Zstd {}
 
-#[cfg(feature = "zstd")]
+#[cfg(feature = "compression-zstd")]
 impl Compression for Zstd {
     fn decompress(data: &[u8]) -> Cow<'_, [u8]> {
         zstd::decode_all(data).unwrap().into()
+    }
+}
+
+/// Do zstd compression on embedded files.
+#[cfg(feature = "compression-lz4")]
+pub enum Lz4 {}
+
+#[cfg(feature = "compression-lz4")]
+impl Compression for Lz4 {
+    fn decompress(data: &[u8]) -> Cow<'_, [u8]> {
+        lz4_compression::decompress::decompress(data)
+            .unwrap()
+            .into()
     }
 }

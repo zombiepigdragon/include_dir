@@ -26,6 +26,13 @@ pub fn include_dir_zstd(input: TokenStream) -> TokenStream {
     include_dir_generic(input, Some(|content| zstd::encode_all(content, 0).unwrap()))
 }
 
+/// Embed the contents of a directory in your crate with LZ4 compression.
+#[cfg(feature = "lz4-compression")]
+#[proc_macro]
+pub fn include_dir_lz4(input: TokenStream) -> TokenStream {
+    include_dir_generic(input, Some(lz4_compression::compress::compress))
+}
+
 // `None` for no compression, or `Some` fn that returns the compressed bytes.
 type CompressorFn = Option<fn(&[u8]) -> Vec<u8>>;
 

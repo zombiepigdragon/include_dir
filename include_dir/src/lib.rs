@@ -106,7 +106,9 @@ pub use crate::metadata::Metadata;
 
 pub use crate::{dir::Dir, dir_entry::DirEntry, file::File};
 pub use include_dir_macros::include_dir;
-#[cfg(feature = "zstd")]
+#[cfg(feature = "compression-lz4")]
+pub use include_dir_macros::include_dir_lz4;
+#[cfg(feature = "compression-zstd")]
 pub use include_dir_macros::include_dir_zstd;
 
 #[doc = include_str!("../README.md")]
