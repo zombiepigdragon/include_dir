@@ -90,6 +90,7 @@
 )]
 #![cfg_attr(feature = "nightly", feature(doc_cfg))]
 
+pub mod compress;
 mod dir;
 mod dir_entry;
 mod file;

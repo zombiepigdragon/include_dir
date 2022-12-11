@@ -1,16 +1,16 @@
-use crate::{Dir, File};
+use crate::{compress::Compression, Dir, File};
 use std::path::Path;
 
 /// A directory entry, roughly analogous to [`std::fs::DirEntry`].
 #[derive(Debug, Clone, PartialEq)]
-pub enum DirEntry<'a> {
+pub enum DirEntry<'a, C: Compression = crate::compress::None> {
     /// A directory.
-    Dir(Dir<'a>),
+    Dir(Dir<'a, C>),
     /// A file.
-    File(File<'a>),
+    File(File<'a, C>),
 }
 
-impl<'a> DirEntry<'a> {
+impl<'a, C: Compression> DirEntry<'a, C> {
     /// The [`DirEntry`]'s full path.
     pub fn path(&self) -> &'a Path {
         match self {
@@ -20,7 +20,7 @@ impl<'a> DirEntry<'a> {
     }
 
     /// Try to get this as a [`Dir`], if it is one.
-    pub fn as_dir(&self) -> Option<&Dir<'a>> {
+    pub fn as_dir(&self) -> Option<&Dir<'a, C>> {
         match self {
             DirEntry::Dir(d) => Some(d),
             DirEntry::File(_) => None,
@@ -28,7 +28,7 @@ impl<'a> DirEntry<'a> {
     }
 
     /// Try to get this as a [`File`], if it is one.
-    pub fn as_file(&self) -> Option<&File<'a>> {
+    pub fn as_file(&self) -> Option<&File<'a, C>> {
         match self {
             DirEntry::File(f) => Some(f),
             DirEntry::Dir(_) => None,
@@ -36,7 +36,7 @@ impl<'a> DirEntry<'a> {
     }
 
     /// Get this item's sub-items, if it has any.
-    pub fn children(&self) -> &'a [DirEntry<'a>] {
+    pub fn children(&self) -> &'a [DirEntry<'a, C>] {
         match self {
             DirEntry::Dir(d) => d.entries(),
             DirEntry::File(_) => &[],

@@ -1,25 +1,39 @@
 use std::{
+    borrow::Cow,
     fmt::{self, Debug, Formatter},
+    marker::PhantomData,
     path::Path,
 };
 
+use once_cell::sync::OnceCell;
+
+use crate::compress::Compression;
+
 /// A file with its contents stored in a `&'static [u8]`.
 #[derive(Clone, PartialEq, Eq)]
-pub struct File<'a> {
+pub struct File<'a, C: Compression = crate::compress::None> {
     path: &'a str,
-    contents: &'a [u8],
+    compressed: &'a [u8],
+    decompressed: &'a OnceCell<Cow<'a, [u8]>>,
     #[cfg(feature = "metadata")]
     metadata: Option<crate::Metadata>,
+    _compression: PhantomData<C>,
 }
 
-impl<'a> File<'a> {
+impl<'a, C: Compression> File<'a, C> {
     /// Create a new [`File`].
-    pub const fn new(path: &'a str, contents: &'a [u8]) -> Self {
+    pub const fn new(
+        path: &'a str,
+        compressed: &'a [u8],
+        decompressed: &'a OnceCell<Cow<'a, [u8]>>,
+    ) -> Self {
         File {
             path,
-            contents,
+            compressed,
+            decompressed,
             #[cfg(feature = "metadata")]
             metadata: None,
+            _compression: PhantomData,
         }
     }
 
@@ -31,7 +45,8 @@ impl<'a> File<'a> {
 
     /// The file's raw contents.
     pub fn contents(&self) -> &[u8] {
-        self.contents
+        self.decompressed
+            .get_or_init(|| C::decompress(self.compressed))
     }
 
     /// The file's contents interpreted as a string.
@@ -41,7 +56,7 @@ impl<'a> File<'a> {
 }
 
 #[cfg(feature = "metadata")]
-impl<'a> File<'a> {
+impl<'a, C: Compression> File<'a, C> {
     /// Set the [`Metadata`] associated with a [`File`].
     pub const fn with_metadata(self, metadata: crate::Metadata) -> Self {
         let File { path, contents, .. } = self;
@@ -59,19 +74,27 @@ impl<'a> File<'a> {
     }
 }
 
-impl<'a> Debug for File<'a> {
+impl<'a, C: Compression> Debug for File<'a, C> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let File {
             path,
-            contents,
+            compressed,
+            decompressed,
             #[cfg(feature = "metadata")]
             metadata,
+            _compression,
         } = self;
 
         let mut d = f.debug_struct("File");
 
-        d.field("path", path)
-            .field("contents", &format!("<{} bytes>", contents.len()));
+        d.field("path", path);
+        d.field(
+            "contents",
+            &match decompressed.get() {
+                Some(contents) => format!("<{} bytes>", contents.len()),
+                None => format!("<{} bytes (compressed)>", compressed.len()),
+            },
+        );
 
         #[cfg(feature = "metadata")]
         d.field("metadata", metadata);

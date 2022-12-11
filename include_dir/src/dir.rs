@@ -1,18 +1,25 @@
+use crate::compress::Compression;
 use crate::{file::File, DirEntry};
 use std::fs;
+use std::marker::PhantomData;
 use std::path::Path;
 
 /// A directory.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Dir<'a> {
+pub struct Dir<'a, C: Compression = crate::compress::None> {
     path: &'a str,
-    entries: &'a [DirEntry<'a>],
+    entries: &'a [DirEntry<'a, C>],
+    _compression: PhantomData<C>,
 }
 
-impl<'a> Dir<'a> {
+impl<'a, C: Compression> Dir<'a, C> {
     /// Create a new [`Dir`].
-    pub const fn new(path: &'a str, entries: &'a [DirEntry<'a>]) -> Self {
-        Dir { path, entries }
+    pub const fn new(path: &'a str, entries: &'a [DirEntry<'a, C>]) -> Self {
+        Dir {
+            path,
+            entries,
+            _compression: PhantomData,
+        }
     }
 
     /// The full path for this [`Dir`], relative to the directory passed to
@@ -22,22 +29,22 @@ impl<'a> Dir<'a> {
     }
 
     /// The entries within this [`Dir`].
-    pub const fn entries(&self) -> &'a [DirEntry<'a>] {
+    pub const fn entries(&self) -> &'a [DirEntry<'a, C>] {
         self.entries
     }
 
     /// Get a list of the files in this directory.
-    pub fn files(&self) -> impl Iterator<Item = &'a File<'a>> + 'a {
+    pub fn files(&self) -> impl Iterator<Item = &'a File<'a, C>> + 'a {
         self.entries().iter().filter_map(DirEntry::as_file)
     }
 
     /// Get a list of the sub-directories inside this directory.
-    pub fn dirs(&self) -> impl Iterator<Item = &'a Dir<'a>> + 'a {
+    pub fn dirs(&self) -> impl Iterator<Item = &'a Dir<'a, C>> + 'a {
         self.entries().iter().filter_map(DirEntry::as_dir)
     }
 
     /// Recursively search for a [`DirEntry`] with a particular path.
-    pub fn get_entry<S: AsRef<Path>>(&self, path: S) -> Option<&'a DirEntry<'a>> {
+    pub fn get_entry<S: AsRef<Path>>(&self, path: S) -> Option<&'a DirEntry<'a, C>> {
         let path = path.as_ref();
 
         for entry in self.entries() {
@@ -56,12 +63,12 @@ impl<'a> Dir<'a> {
     }
 
     /// Look up a file by name.
-    pub fn get_file<S: AsRef<Path>>(&self, path: S) -> Option<&'a File<'a>> {
+    pub fn get_file<S: AsRef<Path>>(&self, path: S) -> Option<&'a File<'a, C>> {
         self.get_entry(path).and_then(DirEntry::as_file)
     }
 
     /// Look up a dir by name.
-    pub fn get_dir<S: AsRef<Path>>(&self, path: S) -> Option<&'a Dir<'a>> {
+    pub fn get_dir<S: AsRef<Path>>(&self, path: S) -> Option<&'a Dir<'a, C>> {
         self.get_entry(path).and_then(DirEntry::as_dir)
     }
 

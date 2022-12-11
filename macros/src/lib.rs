@@ -90,7 +90,10 @@ fn expand_file(root: &Path, path: &Path) -> proc_macro2::TokenStream {
     let normalized_path = normalize_path(root, path);
 
     let tokens = quote! {
-        include_dir::File::new(#normalized_path, #literal)
+        {
+            static INCLUDE_DIR_FILE: ::once_cell::sync::OnceCell<::std::borrow::Cow<[u8]>> = ::once_cell::sync::OnceCell::new();
+            include_dir::File::new(#normalized_path, #literal, &INCLUDE_DIR_FILE)
+        }
     };
 
     match metadata(path) {
