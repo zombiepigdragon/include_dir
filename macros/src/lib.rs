@@ -91,8 +91,8 @@ fn expand_file(root: &Path, path: &Path) -> proc_macro2::TokenStream {
 
     let tokens = quote! {
         {
-            static INCLUDE_DIR_FILE: ::once_cell::sync::OnceCell<::std::borrow::Cow<[u8]>> = ::once_cell::sync::OnceCell::new();
-            include_dir::File::new(#normalized_path, #literal, &INCLUDE_DIR_FILE)
+            static COMPRESSED_FILE: ::include_dir::OnceCell<::std::borrow::Cow<[u8]>> = ::include_dir::OnceCell::new();
+            include_dir::File::new(#normalized_path, #literal, &COMPRESSED_FILE)
         }
     };
 

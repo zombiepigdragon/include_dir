@@ -110,3 +110,7 @@ pub use include_dir_macros::include_dir;
 #[doc = include_str!("../README.md")]
 #[allow(dead_code)]
 fn check_readme_examples() {}
+
+/// Re-export of `OnceCell` to avoid the requiring end-user dependencies.
+#[doc(hidden)]
+pub use once_cell::sync::OnceCell;
